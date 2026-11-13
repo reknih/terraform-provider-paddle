@@ -414,7 +414,7 @@ func (r *PriceResource) Create(ctx context.Context, req resource.CreateRequest, 
 	// Map response to model
 	data.ID = types.StringValue(price.ID)
 	data.Status = types.StringValue(string(price.Status))
-	data.TaxMode = types.StringValue(string(price.TaxMode))
+	data.TaxMode = resolveTaxMode(data.TaxMode, price.TaxMode)
 	data.CreatedAt = types.StringValue(price.CreatedAt)
 	data.UpdatedAt = types.StringValue(price.UpdatedAt)
 
@@ -477,7 +477,7 @@ func (r *PriceResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	}
 
 	// Map tax_mode
-	data.TaxMode = types.StringValue(string(price.TaxMode))
+	data.TaxMode = resolveTaxMode(data.TaxMode, price.TaxMode)
 
 	// Map unit_price
 	unitPriceAttrTypes := map[string]attr.Type{
@@ -730,7 +730,7 @@ func (r *PriceResource) Update(ctx context.Context, req resource.UpdateRequest, 
 
 	// Update model with response data
 	plan.Status = types.StringValue(string(price.Status))
-	plan.TaxMode = types.StringValue(string(price.TaxMode))
+	plan.TaxMode = resolveTaxMode(plan.TaxMode, price.TaxMode)
 	plan.UpdatedAt = types.StringValue(price.UpdatedAt)
 
 	// Update quantity from API response (Paddle may return defaults)
@@ -786,4 +786,15 @@ func (r *PriceResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 // ImportState imports an existing Paddle price by its ID.
 func (r *PriceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// resolveTaxMode returns the tax_mode value to store in state.
+//
+// If the requested value was `account_setting`, store that in state instead of
+// the returned, resolved value.
+func resolveTaxMode(current types.String, returned paddle.TaxMode) types.String {
+	if !current.IsNull() && !current.IsUnknown() && current.ValueString() == string(paddle.TaxModeAccountSetting) {
+		return current
+	}
+	return types.StringValue(string(returned))
 }
